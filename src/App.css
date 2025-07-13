@@ -1,0 +1,10 @@
+/* src/App.css */
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background-color: #f3f4f6;
+}
+
+a {
+  text-decoration: none;
+}
