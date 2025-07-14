@@ -465,6 +465,7 @@ function BookingsDashboard() {
 // Component to load and show waste transfer note
 function WasteTransferNoteModal({ bookingId, onClose }) {
   const [note, setNote] = useState(null);
+  const [noNote, setNoNote] = useState(false);
 
   useEffect(() => {
     async function loadNote() {
@@ -472,12 +473,13 @@ function WasteTransferNoteModal({ bookingId, onClose }) {
         .from("waste_transfer_notes")
         .select("*")
         .eq("booking_id", bookingId)
-        .single();
+        .maybeSingle(); // ← handles no rows gracefully
+
       if (error) {
         alert("Error loading note: " + error.message);
-      } else if (!data) {
-        alert("No Waste Transfer Note found for this booking.");
         onClose();
+      } else if (!data) {
+        setNoNote(true);
       } else {
         setNote(data);
       }
@@ -506,19 +508,12 @@ function WasteTransferNoteModal({ bookingId, onClose }) {
 
     if (note.signature_url) {
       try {
-        // Fetch the image as a blob
         const res = await fetch(note.signature_url);
         const blob = await res.blob();
-
-        // Convert blob to Base64
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64data = reader.result;
-
-          // Add signature image
           doc.addImage(base64data, "PNG", 20, y + 10, 60, 30);
-
-          // Save after image is added
           doc.save(`waste_transfer_note_${note.booking_id}.pdf`);
         };
         reader.readAsDataURL(blob);
@@ -536,7 +531,18 @@ function WasteTransferNoteModal({ bookingId, onClose }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto space-y-4">
         <h2 className="text-lg font-semibold">Waste Transfer Note</h2>
-        {note ? (
+
+        {noNote ? (
+          <div className="text-center space-y-4">
+            <p>No Waste Transfer Note found for this booking.</p>
+            <button
+              className="bg-gray-300 px-4 py-2 rounded"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        ) : note ? (
           <>
             {Object.entries(note).map(([key, value]) =>
               key !== "id" &&
