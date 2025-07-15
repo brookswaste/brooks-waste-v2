@@ -15,6 +15,8 @@ function BookingsDashboard() {
   const [editingBooking, setEditingBooking] = useState(null);
   const [addingBooking, setAddingBooking] = useState(false);
   const [viewingNote, setViewingNote] = useState(null);
+  const [showTable, setShowTable] = useState(true);
+  const [creatingWTN, setCreatingWTN] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -224,11 +226,18 @@ function BookingsDashboard() {
       >
         + Add New Booking
       </button>
+      <br></br>
+      <button
+  onClick={() => setShowTable(!showTable)}
+  className="mb-4 text-blue-600 hover:underline text-sm"
+>
+  {showTable ? "Hide Bookings Table" : "Show Bookings Table"}
+</button>
       {loading ? (
-        <p>Loading bookings...</p>
-      ) : (
-        <div className="w-full overflow-x-auto">
-          <table className="w-full whitespace-nowrap bg-white border border-gray-200 rounded shadow">
+  <p>Loading bookings...</p>
+) : showTable ? (
+  <div className="w-full overflow-x-auto">
+    <table className="w-full whitespace-nowrap bg-white border border-gray-200 rounded shadow">
             <thead className="bg-gray-100 text-sm text-gray-700">
               <tr>
                 <th className="p-2">Client</th>
@@ -236,6 +245,7 @@ function BookingsDashboard() {
                 <th className="p-2">Job Type</th>
                 <th className="p-2">Postcode</th>
                 <th className="p-2">Payment</th>
+                <th className="p-2">Payment Method</th>
                 <th className="p-2">Completed</th>
                 <th className="p-2">Service Date</th>
                 <th className="p-2">Assigned Drivers</th>
@@ -250,6 +260,7 @@ function BookingsDashboard() {
                   <td className="p-2">{b.job_type}</td>
                   <td className="p-2">{b.postcode}</td>
                   <td className="p-2 capitalize">{b.payment_status}</td>
+                  <td className="p-2">{b.payment_method || "—"}</td>
                   <td className="p-2">{b.completed ? "✅" : "—"}</td>
                   <td className="p-2">{b.service_date || "—"}</td>
                   <td className="p-2">{(b.assigned_driver || []).join(", ")}</td>
@@ -273,6 +284,13 @@ function BookingsDashboard() {
                       >
                         Archive
                       </button>
+                      <button
+                        className="text-purple-600 hover:underline"
+                        onClick={() => setCreatingWTN(b)}
+                      >
+                        Create WTN
+                      </button>
+
                     </div>
                   </td>
                 </tr>
@@ -286,8 +304,10 @@ function BookingsDashboard() {
               )}
             </tbody>
           </table>
-        </div>
-      )}
+  </div>
+) : (
+  <p className="text-gray-500 italic">Bookings table is hidden.</p>
+)}
 
       {/* Edit Modal */}
       {editingBooking && (
@@ -331,6 +351,22 @@ function BookingsDashboard() {
                           {driver}
                         </option>
                       ))}
+                    </select>
+                  ) : key === "payment_method" ? (
+                    <select
+                      value={value || ""}
+                      onChange={(e) =>
+                        setEditingBooking({
+                          ...editingBooking,
+                          [key]: e.target.value,
+                        })
+                      }
+                      className="w-full border rounded px-3 py-2"
+                    >
+                      <option value="">Select Payment Method</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                      <option value="Invoice">Invoice</option>
                     </select>
                   ) : (
                     <input
@@ -450,6 +486,89 @@ function BookingsDashboard() {
         </div>
       )}
 
+      {creatingWTN && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg max-h-[80vh] overflow-y-auto space-y-4">
+            <h2 className="text-lg font-semibold">Create Waste Transfer Note</h2>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = new FormData(e.target);
+                const payload = {
+                  booking_id: creatingWTN.id,
+                  client_name: creatingWTN.client_name,
+                  date_created: form.get("date_created"),
+                  waste_type: form.get("waste_type"),
+                  quantity: form.get("quantity"),
+                  notes: form.get("notes"),
+                };
+                const { error } = await supabase
+                  .from("waste_transfer_notes")
+                  .insert(payload);
+                if (error) {
+                  alert("Error creating WTN: " + error.message);
+                } else {
+                  alert("WTN created successfully!");
+                  setCreatingWTN(null);
+                }
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-sm mb-1">Date Created</label>
+                <input
+                  name="date_created"
+                  type="date"
+                  defaultValue={dayjs().format("YYYY-MM-DD")}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Waste Type</label>
+                <input
+                  name="waste_type"
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Quantity</label>
+                <input
+                  name="quantity"
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div className="flex justify-between">
+                <button
+                  type="submit"
+                  className="bg-green-600 text-white px-4 py-2 rounded"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreatingWTN(null)}
+                  className="bg-gray-300 px-4 py-2 rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {viewingNote && (
         <WasteTransferNoteModal
           bookingId={viewingNote}
@@ -491,21 +610,50 @@ function WasteTransferNoteModal({ bookingId, onClose }) {
     if (!note) return;
 
     const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Waste Transfer Note", 105, 20, null, null, "center");
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("Waste Transfer Note", pageWidth / 2, 20, { align: "center" });
 
     doc.setFontSize(12);
-    let y = 35;
+    doc.setFont("helvetica", "normal");
 
+    let y = 30;
+
+    // Draw a rectangle around all details
+    const boxPadding = 5;
+    const boxStartY = y;
+    const boxWidth = pageWidth - 2 * boxPadding;
+
+    // Collect entries (excluding special keys)
     const entries = Object.entries(note).filter(
       ([key]) => !["id", "booking_id", "signature_url"].includes(key)
     );
 
+    // Draw each entry with lines
     entries.forEach(([key, value]) => {
-      doc.text(`${key.replace(/_/g, " ")}: ${value}`, 20, y);
-      y += 8;
+      const label = key.replace(/_/g, " ");
+      doc.text(`${label}:`, 10, y + 7);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${value}`, 60, y + 7);
+      doc.setFont("helvetica", "normal");
+
+      // Horizontal line under each row
+      doc.setDrawColor(200);
+      doc.line(10, y + 10, pageWidth - 10, y + 10);
+
+      y += 12;
     });
 
+    y += 5;
+
+    // Draw rectangle around section
+    doc.setDrawColor(100);
+    doc.rect(8, boxStartY - 2, pageWidth - 16, y - boxStartY + 2);
+
+    // Signature
     if (note.signature_url) {
       try {
         const res = await fetch(note.signature_url);
@@ -513,19 +661,24 @@ function WasteTransferNoteModal({ bookingId, onClose }) {
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64data = reader.result;
-          doc.addImage(base64data, "PNG", 20, y + 10, 60, 30);
+
+          doc.setFont("helvetica", "normal");
+          doc.text("Signature:", 10, y + 10);
+          doc.addImage(base64data, "PNG", 10, y + 12, 60, 30);
           doc.save(`waste_transfer_note_${note.booking_id}.pdf`);
         };
         reader.readAsDataURL(blob);
       } catch (err) {
         console.error("Error fetching signature image:", err);
-        doc.text("Signature could not be loaded.", 20, y);
+        doc.text("Signature could not be loaded.", 10, y + 10);
         doc.save(`waste_transfer_note_${note.booking_id}.pdf`);
       }
     } else {
+      doc.text("Signature: None provided", 10, y + 10);
       doc.save(`waste_transfer_note_${note.booking_id}.pdf`);
     }
   }
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
